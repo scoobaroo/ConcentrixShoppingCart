@@ -1,13 +1,26 @@
+import { IColumn } from "@fluentui/react";
+import React = require("react");
+import ReactDOM = require("react-dom");
+import { App } from "./components/App";
 import {IInputs, IOutputs} from "./generated/ManifestTypes";
+import { PowerAppsIntegrationService } from "./integrations/PowerAppsIntegrationService";
+import { IProduct } from "./interfaces/IProduct";
+
 
 export class ShoppingCart implements ComponentFramework.StandardControl<IInputs, IOutputs> {
+
+
+    private _container: HTMLDivElement;
+	private _props: IAppProps;
+	private _service: PowerAppsIntegrationService;
+	private notifyOutputChanged: () => void;
 
     /**
      * Empty constructor.
      */
     constructor()
     {
-
+        
     }
 
     /**
@@ -20,7 +33,10 @@ export class ShoppingCart implements ComponentFramework.StandardControl<IInputs,
      */
     public init(context: ComponentFramework.Context<IInputs>, notifyOutputChanged: () => void, state: ComponentFramework.Dictionary, container:HTMLDivElement): void
     {
-        // Add control initialization code
+        this.notifyOutputChanged = notifyOutputChanged;
+		this._container = container;
+		this._service = new PowerAppsIntegrationService(context);
+		context.mode.trackContainerResize(true);
     }
 
 
@@ -28,8 +44,22 @@ export class ShoppingCart implements ComponentFramework.StandardControl<IInputs,
      * Called when any value in the property bag has changed. This includes field values, data-sets, global values such as container height and width, offline status, control metadata values such as label, visible, etc.
      * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to names defined in the manifest, as well as utility functions
      */
-    public updateView(context: ComponentFramework.Context<IInputs>): void
+    public async updateView(context: ComponentFramework.Context<IInputs>): Promise<void>
     {
+        let taxRate: number = await this._service.retrieveConfiguration("Tax Rate");
+        taxRate = taxRate/100;
+		let products: IProduct[] = await this._service.getProducts();
+		this._props = {
+            taxRate,
+			shoppingCart: this,
+			componentContext: context,
+            products
+		}
+		ReactDOM.render(
+			React.createElement(App, this._props),
+			this._container
+		);
+
         // Add code to update control view
     }
 
@@ -48,6 +78,6 @@ export class ShoppingCart implements ComponentFramework.StandardControl<IInputs,
      */
     public destroy(): void
     {
-        // Add code to cleanup control if necessary
+        ReactDOM.unmountComponentAtNode(this._container);
     }
 }
